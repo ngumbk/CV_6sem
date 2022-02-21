@@ -49,10 +49,7 @@ int main() {
 	cv::imwrite("cross_0256x0256_png_channels.png", mosaic_png);
 
 	//jpeg 3-channel mosaic
-	params_jpeg.pop_back();
-	params_jpeg.push_back(100);
-	cv::imwrite("cross_0256x0256.jpg", image_png, params_jpeg);
-	cv::Mat image_jpeg = cv::imread("cross_0256x0256.jpg");
+	cv::Mat image_jpeg = cv::imread("cross_0256x0256_025.jpg");
 	
 	//splitting 3-channel image into 3 1C
 	cv::Mat single_channel_jpeg[3]; //BGR
