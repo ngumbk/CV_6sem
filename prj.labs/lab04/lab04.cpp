@@ -46,9 +46,15 @@ int process_video(std::string video_name, int threshold, int morphology_type) {
 	cv::Mat frames[3]; //arrays for 3 frames from video
 	cv::Mat framesGS[3];
 	cv::Mat framesBin[3];
+	cv::Mat framesMorph[3];
+	cv::Mat framesCC[3] = { cv::Mat(frames[0].size(), CV_8UC3),
+							cv::Mat(frames[1].size(), CV_8UC3),
+							cv::Mat(frames[2].size(), CV_8UC3) };
+	framesCC[0] = 0;
+	framesCC[1] = 0;
+	framesCC[2] = 0;
 
 	//arrays for connecteedComponentsWithStats output
-	cv::Mat connectedComponents[3];
 	cv::Mat stats[3];
 	cv::Mat centroids[3];
 
@@ -63,45 +69,36 @@ int process_video(std::string video_name, int threshold, int morphology_type) {
 
 		//creating a filename to write frame
 		//std::string frame_path = "frames/" + video_name + "." + std::to_string(i + 1) + ".png";
-		cv::imwrite("frames/" + video_name + "_orig_" + std::to_string(i + 1) + ".png", frames[i]); //saving img
+		cv::imwrite("frames/" + video_name + "_ORIG_" + std::to_string(i + 1) + ".png", frames[i]); //saving orig img
 
 		
 		//color reduction & binarization
-		cv::cvtColor(frames[i], frames[i], cv::COLOR_BGR2GRAY); //color reduction
-		cv::imwrite("frames/" + video_name + "_gs_" + std::to_string(i + 1) + ".png", frames[i]); //saving img
+		cv::cvtColor(frames[i], framesGS[i], cv::COLOR_BGR2GRAY); //color reduction
+		cv::imwrite("frames/" + video_name + "_GS_" + std::to_string(i + 1) + ".png", framesGS[i]); //saving gs img
 
-		cv::imshow("hist " + std::to_string(i + 1), makeHist(frames[i])); //showing hist
-		cv::threshold(frames[i], frames[i], threshold, 255, 0); //binarization
-		cv::imwrite("frames/" + video_name + "_bin_" + std::to_string(i + 1) + ".png", frames[i]); //saving img
+		//cv::imshow("hist " + std::to_string(i + 1), makeHist(frames[i])); //showing hist
+
+		cv::threshold(framesGS[i], framesBin[i], threshold, 255, cv::THRESH_OTSU); //binarization
+		cv::imwrite("frames/" + video_name + "_BIN_" + std::to_string(i + 1) + ".png", framesBin[i]); //saving bin img
 
 
 		//morphology
 		cv::Mat structuring_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(6, 10));
-		cv::morphologyEx(frames[i], frames[i], morphology_type, structuring_element);
-		cv::morphologyEx(frames[i], frames[i], cv::MORPH_OPEN, structuring_element);
+		cv::morphologyEx(framesBin[i], framesMorph[i], morphology_type, structuring_element);
+		cv::morphologyEx(framesMorph[i], framesMorph[i], cv::MORPH_OPEN, structuring_element);
 		structuring_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(45, 45));
-		cv::morphologyEx(frames[i], frames[i], cv::MORPH_DILATE, structuring_element);
+		cv::morphologyEx(framesMorph[i], framesMorph[i], cv::MORPH_DILATE, structuring_element);
 		
-		//int nLables = cv::connectedComponentsWithStats(frames[i], connectedComponents[i], stats[i], centroids[i], 8, CV_16U);
 
-		//test
-		cv::Mat labelImage(frames[i].size(), CV_32S);
-		int nLabels = cv::connectedComponents(frames[i], labelImage, 8);
-		std::vector<cv::Vec3b> colors(nLabels);
-		colors[0] = cv::Vec3b(0, 0, 0);//background
-		for (int label = 1; label < nLabels; ++label) {
-			colors[label] = cv::Vec3b((rand() & 255), (rand() & 255), (rand() & 255));
-		}
-		cv::Mat dst(frames[i].size(), CV_8UC3);
-		for (int r = 0; r < dst.rows; ++r) {
-			for (int c = 0; c < dst.cols; ++c) {
-				int label = labelImage.at<int>(r, c);
-				cv::Vec3b& pixel = dst.at<cv::Vec3b>(r, c);
-				pixel = colors[label];
-			}
-		}
-		imshow("Connected Components " + std::to_string(i + 1), dst);
+		cv::Mat labelImage(framesMorph[i].size(), CV_32S); //final img
+
+		int nLabels = cv::connectedComponentsWithStats(framesMorph[i], labelImage, stats[i], centroids[i], 8, CV_32S);
+		std::cout << "\nnLables: " << nLabels << "\n\n";
 		
+		//cv::imshow("labelImage " + std::to_string(i + 1),);
+
+
+
 
 	}
 	cv::waitKey(0);
@@ -111,11 +108,11 @@ int process_video(std::string video_name, int threshold, int morphology_type) {
 
 int main() {
 	
-	process_video("100Rub.MOV", 180, cv::MORPH_CLOSE);
-	process_video("1kRub.MOV", 190, cv::MORPH_CLOSE);
-	process_video("2kRub.MOV", 127, cv::MORPH_CLOSE); //+OPEN
+	//process_video("100Rub.MOV", 180, cv::MORPH_CLOSE);
+	//process_video("1kRub.MOV", 190, cv::MORPH_CLOSE);
+	//process_video("2kRub.MOV", 127, cv::MORPH_CLOSE); //+OPEN
 	process_video("5kRub.MOV", 170, cv::MORPH_CLOSE);
 	
-	// еще 5 видео
+	// еще 5-е видео
 
 	}	
