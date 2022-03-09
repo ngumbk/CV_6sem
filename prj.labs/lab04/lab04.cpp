@@ -30,9 +30,9 @@ cv::Mat makeHist(cv::Mat img) {
 	return hist;
 }
 
-int process_video(std::string video_name, int threshold, int morphology_type) {
+int process_video(std::string video_name, int threshold) {
 	//opening an instance of video by the calculated path
-	cv::VideoCapture video("../../../data/" + video_name);
+	cv::VideoCapture video("../../../data/videos_lab04/" + video_name);
 
 	video_name = video_name.substr(0, video_name.size() - 4);
 
@@ -41,22 +41,12 @@ int process_video(std::string video_name, int threshold, int morphology_type) {
 		std::cout << "ERROR! THE VIDEO IS NOT OPENED.\n";
 		return -1;
 	}
+
+	//getting the total amount of frames in the video
 	int nFrames = video.get(cv::CAP_PROP_FRAME_COUNT);
 	
-	cv::Mat frames[3]; //arrays for 3 frames from video
-	cv::Mat framesGS[3];
-	cv::Mat framesBin[3];
-	cv::Mat framesMorph[3];
-	cv::Mat framesCC[3] = { cv::Mat(frames[0].size(), CV_8UC3),
-							cv::Mat(frames[1].size(), CV_8UC3),
-							cv::Mat(frames[2].size(), CV_8UC3) };
-	framesCC[0] = 0;
-	framesCC[1] = 0;
-	framesCC[2] = 0;
-
-	//arrays for connecteedComponentsWithStats output
-	cv::Mat stats[3];
-	cv::Mat centroids[3];
+	//arrays for each stage of frame processing
+	cv::Mat frames[3], framesGS[3], framesBin[3], framesMorph[3], framesCC[3];
 
 	for (int i = 0; i < 3; i++) {
 		//counting current frame
@@ -64,7 +54,6 @@ int process_video(std::string video_name, int threshold, int morphology_type) {
 
 		//getting the current frame
 		video.set(cv::CAP_PROP_POS_FRAMES, frame_number);
-
 		video >> frames[i];
 
 		//creating a filename to write frame
@@ -76,29 +65,65 @@ int process_video(std::string video_name, int threshold, int morphology_type) {
 		cv::cvtColor(frames[i], framesGS[i], cv::COLOR_BGR2GRAY); //color reduction
 		cv::imwrite("frames/" + video_name + "_GS_" + std::to_string(i + 1) + ".png", framesGS[i]); //saving gs img
 
-		//cv::imshow("hist " + std::to_string(i + 1), makeHist(frames[i])); //showing hist
+		//cv::imwrite("hist " + video_name + std::to_string(i + 1) + ".png", makeHist(framesGS[i])); //saving hist
 
-		cv::threshold(framesGS[i], framesBin[i], threshold, 255, cv::THRESH_OTSU); //binarization
+		cv::threshold(framesGS[i], framesBin[i], threshold, 255, cv::THRESH_BINARY); //binarization
 		cv::imwrite("frames/" + video_name + "_BIN_" + std::to_string(i + 1) + ".png", framesBin[i]); //saving bin img
 
 
 		//morphology
+		
 		cv::Mat structuring_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(6, 10));
-		cv::morphologyEx(framesBin[i], framesMorph[i], morphology_type, structuring_element);
+		cv::morphologyEx(framesBin[i], framesMorph[i], cv::MORPH_CLOSE, structuring_element);
 		cv::morphologyEx(framesMorph[i], framesMorph[i], cv::MORPH_OPEN, structuring_element);
-		structuring_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(45, 45));
+
+		structuring_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(50, 50));
 		cv::morphologyEx(framesMorph[i], framesMorph[i], cv::MORPH_DILATE, structuring_element);
 		
+		cv::imwrite("frames/" + video_name + "_MORPH_" + std::to_string(i + 1) + ".png", framesMorph[i]); //saving bin img
 
-		cv::Mat labelImage(framesMorph[i].size(), CV_32S); //final img
-
-		int nLabels = cv::connectedComponentsWithStats(framesMorph[i], labelImage, stats[i], centroids[i], 8, CV_32S);
-		std::cout << "\nnLables: " << nLabels << "\n\n";
+		//arrays for connecteedComponentsWithStats output
+		cv::Mat labeledImage(framesMorph[i].size(), CV_32S), stats, centroids;
+		//labeling connected components and gathering stats
+		int nLabels = cv::connectedComponentsWithStats(framesMorph[i], labeledImage, stats, centroids, 8, CV_32S); 
 		
-		//cv::imshow("labelImage " + std::to_string(i + 1),);
+		//writing info about CCs
+		std::cout << "\nnLables: " << nLabels << "\n";
+		std::cout << video_name << std::endl;
+		for (int j = 0; j < nLabels; j++) {
+			std::cout << "frame: " << i + 1 << " label: " << j + 1 << " area: " << stats.at<int>(j, cv::CC_STAT_AREA) << std::endl;
+		}
 
+		//finding main connected components by area, providing it's the biggest except background
+		int max_area = 0, max_label = 1;
 
+		for (int j = 1; j < nLabels; j++) {
+			if (max_area < stats.at<int>(j, cv::CC_STAT_AREA)) {
+				max_area = stats.at<int>(j, cv::CC_STAT_AREA);
+				max_label = j;
+			}
+		}
+		
+		//creating vector of colors
+		std::vector<cv::Vec3b> colors(nLabels);
+		for (int j = 0; j < nLabels; j++) {
+			colors[j] = cv::Vec3b(0, 0, 0);
+		}
+		colors[max_label] = cv::Vec3b(255, 255, 255);
 
+		//test
+		framesCC[i] = frames[i].clone();
+		framesCC[i] = 0;
+		//cv::Mat dst(frames[i].size(), frames[i].type());
+		//dyeing CCs with random colors
+		for (int j = 0; j < labeledImage.rows; j++) {
+			for (int k = 0; k < labeledImage.cols; k++) {
+				int label = labeledImage.at<int>(j, k);
+				cv::Vec3b& pixel = framesCC[i].at<cv::Vec3b>(j, k);
+				pixel = colors[label];
+			}
+		}
+		cv::imwrite("frames/" + video_name + "_CC_" + std::to_string(i + 1) + ".png", framesCC[i]); //saving img with CCs
 
 	}
 	cv::waitKey(0);
@@ -107,12 +132,9 @@ int process_video(std::string video_name, int threshold, int morphology_type) {
 }
 
 int main() {
-	
-	//process_video("100Rub.MOV", 180, cv::MORPH_CLOSE);
-	//process_video("1kRub.MOV", 190, cv::MORPH_CLOSE);
-	//process_video("2kRub.MOV", 127, cv::MORPH_CLOSE); //+OPEN
-	process_video("5kRub.MOV", 170, cv::MORPH_CLOSE);
-	
-	// еще 5-е видео
-
+	process_video("100Rub.MOV", 200);
+	process_video("1kRub.MOV", 190);
+	process_video("1kRub2.MOV", 210);
+	process_video("2kRub.MOV", 127);
+	process_video("5kRub.MOV", 185);
 	}	
