@@ -2,7 +2,7 @@
 автор: Чулков Н.К. БПМ-19-3
 дата: @time_stemp@
 
-<!-- url: https://gitlab.com/2021-misis-spring/polevoy_d_v/-/tree/master/prj.labs/lab01 -->
+Github: https://github.com/ngumbk/Image_processing/tree/main/prj.labs/lab01
 
 ### Задание
 1. Сгенерировать серое тестовое изображение $I_1$ в виде прямоугольника размером 768х60 пикселя с плавным изменение пикселей от черного к белому, одна градация серого занимает 3 пикселя по горизонтали.
