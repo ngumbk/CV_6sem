@@ -9,6 +9,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_SOURCE_DIR}/bin.rel)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_CURRENT_SOURCE_DIR}/bin.relwithdbg)
 
 project(chulkov_n_k)
+
+set(OpenCV_DIR "C:/Program Files/OpenCV/opencv/build")
+
 string(TIMESTAMP time_stemp "%Y-%m-%dT%H:%M:%S")
 
 find_package(OpenCV REQUIRED)
