@@ -1,9 +1,9 @@
 #include <opencv2/opencv.hpp>
 
 //counting LUT in order to shorten processing time
-void countLUT(int* LUT) {
+void countLUT(int* LUT, double k) {
 	for (int i = 0; i < 256; i++) {
-		LUT[i] = i * i / 400;
+		LUT[i] = 255 * sin(i / k);
 	}
 }
 
@@ -33,32 +33,23 @@ cv::Mat changeBrightness(cv::Mat image, int *LUT) {
 int main() {
 	//reading and saving pic as a new file
 	cv::Mat img = cv::imread("../../../data/cross_0256x0256.png");
-	cv::imwrite("lab03_rgb.png", img); //saving pic 1
-	
-	//Calculating LUT for the function and processing BGR img
-	int LUT[256];
-	countLUT(LUT);
-	cv::Mat processed_img = changeBrightness(img, LUT).clone();
-	cv::imwrite("lab03_rgb_res.png", processed_img);
 
-	//making grayscale img
-	cv::Mat gs_img;
-	cv::cvtColor(img, gs_img, cv::COLOR_BGR2GRAY);
-	cv::imwrite("lab03_gre.png", gs_img);
-
-	//changing gs_img brightness
-	cv::Mat processed_gs_img = changeBrightnessGS(gs_img, LUT).clone();
-	cv::imwrite("lab03_gre_res.png", processed_gs_img);
+	for (int i = 1; i < 400; i++) {
+		//Calculating LUT for the function and processing BGR img
+		int LUT[256];
+		countLUT(LUT, i);
+		cv::Mat processed_img = changeBrightness(img, LUT).clone();
+		cv::imwrite("lab03_rgb_res.png", processed_img);
 
 	//drawing graphic
+	/*
 	cv::Mat function_graphic(512, 512, CV_8UC1, cv::Scalar(255, 255, 255));
 	for (int i = 0; i < function_graphic.cols - 1; i++) {
 		cv::line(function_graphic,
-		cv::Point(i, function_graphic.cols - LUT[i / 2] * 2),
-		cv::Point(i + 1, function_graphic.cols - LUT[(i + 1) / 2] * 2),
-		cv::Scalar(0, 0, 0), 1, 8, 0);
+			cv::Point(i, function_graphic.cols - LUT[i / 2] * 2),
+			cv::Point(i + 1, function_graphic.cols - LUT[(i + 1) / 2] * 2),
+			cv::Scalar(0, 0, 0), 1, 8, 0);
 	}
-
 	//drawing coordinate axes
 	cv::line(function_graphic,
 		cv::Point(0, 0),
@@ -69,4 +60,5 @@ int main() {
 		cv::Point(function_graphic.cols, function_graphic.cols),
 		cv::Scalar(0, 0, 0), 4, 8, 0);
 	cv::imwrite("lab03_viz_func.png", function_graphic);
+	*/
 }

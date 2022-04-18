@@ -3,3 +3,6 @@ bin.rel
 build.vs.2022
 out
 .vs
+data/videos_lab04/*
+data/IMG_*
+prj.labs/PsychedelicFilter
