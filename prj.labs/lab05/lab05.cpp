@@ -1,5 +1,11 @@
 #include <opencv2/opencv.hpp>
 
+cv::Point get_standard_coordinates() { //1, 2, 5, 100, 500
+	//сначала сопоставление fid и fname
+	//"fid":"1","fname":"1kRub_ORIG_1.png"
+	return 0;
+}
+
 cv::Mat Greyscaling(cv::Mat input_img) {
 	cv::Mat splitted_img[3], output_img;
 	cv::split(input_img, splitted_img);
@@ -26,10 +32,14 @@ int find_boundaries(std::string frame_name) {
 		//cv::GaussianBlur(frame_resized, frame_blurred, cv::Size(5, 5), 7, 3, cv::BORDER_REPLICATE);
 		cv::bilateralFilter(frame_resized, frame_blurred, 5, 1000, 10, cv::BORDER_REPLICATE);
 
-		
 		//Using Canny operator
 		cv::Mat frame_Canny;
-		cv::Canny(frame_blurred, frame_Canny, 140, 200);
+		cv::Canny(frame_blurred, frame_Canny, 140, 200); //140-200
+
+		//dilating 1 px to restore some edges
+		cv::morphologyEx(frame_Canny, frame_Canny, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(1, 3)));
+		cv::morphologyEx(frame_Canny, frame_Canny, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 1)));
+
 
 		//resizing back so that we'll get the x0.5 size comparing to original
 		cv::resize(frame_blurred, frame_blurred, cv::Size(), 4, 4);
@@ -44,8 +54,8 @@ int find_boundaries(std::string frame_name) {
 		cv::imshow("Harris", output_Harris);
 		*/
 
-		//dilating 1 px to restore some edges
-		//cv::morphologyEx(frame_Canny, frame_Canny, cv::MORPH_DILATE, )
+		
+		
 
 		std::vector<std::vector<cv::Point>> contours;
 		std::vector<cv::Vec4i> hierarchy;
@@ -72,5 +82,4 @@ int main() {
 	find_boundaries("1kRub");
 	find_boundaries("2kRub");
 	find_boundaries("5kRub");
-	
 }
