@@ -1,9 +1,33 @@
 #include <opencv2/opencv.hpp>
 
-cv::Point get_standard_coordinates() { //1, 2, 5, 100, 500
+void parse_markup(std::string frame_name, std::vector<std::vector<cv::Point>> points) { //1, 2, 5, 100, 500
 	//сначала сопоставление fid и fname
 	//"fid":"1","fname":"1kRub_ORIG_1.png"
-	return 0;
+	cv::FileStorage fs("../../../data/All_banknotes.json", cv::FileStorage::READ);
+	cv::FileNode root = fs["file"];
+	std::string fname, fid, vid;
+	cv::Point coords;
+	for (int i = 0; i < root.size(); i++) {
+		cv::FileNode data = root[std::to_string(i + 1)];
+		data["fname"] >> fname;
+		fname = fname.substr(0, fname.find("_"));
+		if (fname == frame_name) {
+			data["fid"] >> fid;
+			root = fs["metadata"];
+			for (int j = 0; j < 4; j++) {
+				
+				data = root[fid + "_" + std::to_string(j)];
+				/*
+				data["vid"] >> vid;
+				
+				if (vid == fid) 
+				*/
+				coords.x = data["xy"][1];
+				coords.y = data["xy"][2];
+				
+			}
+		}
+	}
 }
 
 cv::Mat Greyscaling(cv::Mat input_img) {
@@ -15,6 +39,8 @@ cv::Mat Greyscaling(cv::Mat input_img) {
 }
 
 int find_boundaries(std::string frame_name) {
+	std::vector<std::vector<cv::Point>> points;
+	parse_markup(frame_name, points);
 	for (int i = 0; i < 3; i++) {
 		//loading the frame from the lab04 directory
 		cv::Mat frame_orig = cv::imread("../lab04/frames/" + frame_name + "_ORIG_" + std::to_string(i + 1) + ".png");
@@ -61,7 +87,7 @@ int find_boundaries(std::string frame_name) {
 		std::vector<cv::Vec4i> hierarchy;
 
 		//cv::findContours(frame_Canny, contours, hierarchy, );
-		cv::imshow("Blur", frame_blurred);
+		//cv::imshow("Blur", frame_blurred);
 		cv::imshow("Canny", frame_Canny);
 		//cv::imshow("1-channels", Greyscaling(frame_resized));
 
@@ -77,9 +103,9 @@ int find_boundaries(std::string frame_name) {
 
 int main() {
 	//take the same names as in the lab04 .cpp file
-	find_boundaries("100Rub");
-	find_boundaries("500Rub");
 	find_boundaries("1kRub");
 	find_boundaries("2kRub");
 	find_boundaries("5kRub");
+	find_boundaries("100Rub");
+	find_boundaries("500Rub");
 }
