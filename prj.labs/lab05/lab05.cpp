@@ -7,14 +7,11 @@ long GetFileSize(std::string filename)
 	return rc == 0 ? stat_buf.st_size : -1;
 }
 
-void parse_markup(std::string frame_name, std::vector<std::vector<cv::Point>> points) { //1, 2, 5, 100, 500
-	//сначала сопоставление fid и fname
-	//"fid":"1","fname":"1kRub_ORIG_1.png"
+void parse_markup(std::string frame_name, std::vector<std::vector<cv::Point>> &points) { //1, 2, 5, 100, 500
 	points.resize(3);
 	cv::FileStorage fs("../../../data/Banknotes_markup.json", cv::FileStorage::READ);
 	cv::FileNode points_x, points_y;
 	std::string root;
-	cv::Point coords;
 	std::string file_path;
 	for (int i = 0; i < 3; i++) {
 		file_path = "../lab04/frames/" + frame_name + "_ORIG_" + std::to_string(i + 1) + ".png";
@@ -35,6 +32,23 @@ cv::Mat Greyscaling(cv::Mat input_img) {
 	return output_img;
 }
 
+double estimate_error(std::vector<cv::Point> main_contour, std::vector<cv::Point> points_marked) {
+	double perimeter = cv::arcLength(points_marked, true);
+	double max_dist = 0, distance = 0;
+	//std::cout << "POINTS:\n";
+	for (int i = 0; i < points_marked.size(); i++) {
+		/*
+		std::cout << "Main:\t" << main_contour[i].x << " " << main_contour[i].y << "\n";
+		std::cout << "Marked:\t" << points_marked[i].x << " " << points_marked[i].y << "\n\n";
+		*/
+		distance = cv::norm(main_contour[i] - points_marked[i]);
+		if (distance > max_dist) {
+			max_dist = distance;
+		}
+	}
+	return max_dist / perimeter;
+}
+
 int find_boundaries(std::string frame_name) {
 	std::vector<std::vector<cv::Point>> points;
 	parse_markup(frame_name, points);
@@ -42,7 +56,7 @@ int find_boundaries(std::string frame_name) {
 		//loading the frame from the lab04 directory
 		cv::Mat frame_orig = cv::imread("../lab04/frames/" + frame_name + "_ORIG_" + std::to_string(i + 1) + ".png");
 
-		//Shrinking image to 0.125 of the original size
+		//Downscaling image to 0.125 of the original size
 		cv::Mat frame_resized; //(854, 480, CV_8UC3);
 		cv::resize(frame_orig, frame_resized, cv::Size(), 0.125, 0.125);
 
@@ -59,34 +73,59 @@ int find_boundaries(std::string frame_name) {
 		cv::Mat frame_Canny;
 		cv::Canny(frame_blurred, frame_Canny, 140, 200); //140-200
 
-		//dilating 1 px to restore some edges
-		cv::morphologyEx(frame_Canny, frame_Canny, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(1, 3)));
-		cv::morphologyEx(frame_Canny, frame_Canny, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 1)));
+		//resizing back to original size
+		cv::resize(frame_blurred, frame_blurred, cv::Size(), 8, 8);
+		cv::resize(frame_Canny, frame_Canny, cv::Size(), 8, 8);
+		cv::resize(frame_resized, frame_resized, cv::Size(), 8, 8);
 
-
-		//resizing back so that we'll get the x0.5 size comparing to original
-		cv::resize(frame_blurred, frame_blurred, cv::Size(), 4, 4);
-		cv::resize(frame_Canny, frame_Canny, cv::Size(), 4, 4);
-		cv::resize(frame_resized, frame_resized, cv::Size(), 4, 4);
-
-		/*
-		//Using Harris corner detector
-		cv::Mat output_Harris;
-		cv::cornerHarris(frame_Canny, output_Harris, 7, 5, 0.04, cv::BORDER_REPLICATE);
-		cv::resize(output_Harris, output_Harris, cv::Size(), 0.25, 0.25);
-		cv::imshow("Harris", output_Harris);
-		*/
-
-		
-		
 
 		std::vector<std::vector<cv::Point>> contours;
 		std::vector<cv::Vec4i> hierarchy;
 
-		//cv::findContours(frame_Canny, contours, hierarchy, );
+		std::cout << frame_name << " " << std::to_string(i + 1) << "\n";
+
+		cv::findContours(frame_Canny, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+
+		//approxing found contours
+		std::vector<std::vector<cv::Point>> contours_approxed(contours.size());
+		double c;
+		for (int j = 0; j < contours.size(); j++) {
+			c = 0.05;
+			do {
+				cv::approxPolyDP(contours[j], contours_approxed[j], cv::arcLength(contours[j], true) * c, true);
+				c += 0.005;
+			 } while (contours_approxed[j].size() > 4);
+		}
+
+		//finding the longest contour and drawing it
+		int max_size = 0, max_i = 0;
+		for (int j = 0; j < contours.size(); j++) {
+			if (contours[j].size() > max_size) {
+				max_size = contours[j].size();
+				max_i = j;
+			}
+		}
+		std::vector<cv::Point> main_contour = contours_approxed[max_i];
+		cv::Mat main_contour_drawn(frame_Canny.size(), frame_Canny.type());
+		main_contour_drawn = 0;
+		for (int j = 0; j < 4; j++) {
+			cv::line(main_contour_drawn, main_contour[j], main_contour[(j + 1) % 4], cv::Scalar(255, 255, 255));
+		}
+
+		//swapping points 2 and 4 in min_contour vector
+		std::swap(main_contour[1], main_contour[3]);
+		 
+		//marked points correct, main_contour to fix
+		std::cout << estimate_error(main_contour, points[i]) << "\n\n";
+
+		cv::drawContours(frame_orig, points, i, cv::Scalar(0, 255, 0));
+		cv::drawContours(frame_orig, contours_approxed, max_i, cv::Scalar(rand() % 255, rand() % 255, rand() % 255));
+		
+		//cv::imshow("main_contour", main_contour_drawn);
+
+		cv::imshow("drawcontours", frame_orig);
 		//cv::imshow("Blur", frame_blurred);
-		cv::imshow("Canny", frame_Canny);
-		//cv::imshow("1-channels", Greyscaling(frame_resized));
+		//cv::imshow("Canny", frame_Canny);
 
 		cv::waitKey(0);
 		
@@ -105,4 +144,5 @@ int main() {
 	find_boundaries("5kRub");
 	find_boundaries("100Rub");
 	find_boundaries("500Rub");
+	return 0;
 }
