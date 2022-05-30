@@ -1,31 +1,28 @@
 #include <opencv2/opencv.hpp>
 
+long GetFileSize(std::string filename)
+{
+	struct stat stat_buf;
+	int rc = stat(filename.c_str(), &stat_buf);
+	return rc == 0 ? stat_buf.st_size : -1;
+}
+
 void parse_markup(std::string frame_name, std::vector<std::vector<cv::Point>> points) { //1, 2, 5, 100, 500
 	//сначала сопоставление fid и fname
 	//"fid":"1","fname":"1kRub_ORIG_1.png"
-	cv::FileStorage fs("../../../data/All_banknotes.json", cv::FileStorage::READ);
-	cv::FileNode root = fs["file"];
-	std::string fname, fid, vid;
+	points.resize(3);
+	cv::FileStorage fs("../../../data/Banknotes_markup.json", cv::FileStorage::READ);
+	cv::FileNode points_x, points_y;
+	std::string root;
 	cv::Point coords;
-	for (int i = 0; i < root.size(); i++) {
-		cv::FileNode data = root[std::to_string(i + 1)];
-		data["fname"] >> fname;
-		fname = fname.substr(0, fname.find("_"));
-		if (fname == frame_name) {
-			data["fid"] >> fid;
-			root = fs["metadata"];
-			for (int j = 0; j < 4; j++) {
-				
-				data = root[fid + "_" + std::to_string(j)];
-				/*
-				data["vid"] >> vid;
-				
-				if (vid == fid) 
-				*/
-				coords.x = data["xy"][1];
-				coords.y = data["xy"][2];
-				
-			}
+	std::string file_path;
+	for (int i = 0; i < 3; i++) {
+		file_path = "../lab04/frames/" + frame_name + "_ORIG_" + std::to_string(i + 1) + ".png";
+		root = frame_name + "_ORIG_" + std::to_string(i + 1) + ".png" + std::to_string(GetFileSize(file_path));
+		points_x = fs[root]["regions"][0]["shape_attributes"]["all_points_x"];
+		points_y = fs[root]["regions"][0]["shape_attributes"]["all_points_y"];
+		for (int j = 0; j < 4; j++) {
+			points[i].push_back(cv::Point(points_x[j], points_y[j]));
 		}
 	}
 }
